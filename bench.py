@@ -129,8 +129,10 @@ def print_results_table(
                     df_median = r.median_time
                 else:
                     best_other = min(best_other, r.median_time)
+            elif r and r.error:
+                row.append("ERROR")
             else:
-                row.append("ERROR" if r and r.error else "SKIP")
+                row.append("n/a")
 
         if "datafusion" in systems and len(systems) > 1:
             row.append(format_ratio(df_median, best_other))
@@ -224,7 +226,11 @@ def main():
         all_results[udf.name] = {}
 
         for sys_name, runner in runners.items():
-            sql = udf.query_for(sys_name).format(table=runner.table_ref())
+            query = udf.query_for(sys_name)
+            if query is None:
+                print(f"  {sys_name}: n/a")
+                continue
+            sql = query.format(table=runner.table_ref())
             result = runner.benchmark(
                 udf_name=udf.name,
                 sql=sql,

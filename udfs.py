@@ -9,38 +9,39 @@ class UDFBenchmark:
     category: str
     description: str
     # Full SQL query templates. Use {table} as placeholder for table reference.
-    query_datafusion: str
-    query_duckdb: str
-    query_clickhouse: str
+    # None means the function is not supported on that system.
+    query_datafusion: str | None
+    query_duckdb: str | None
+    query_clickhouse: str | None
 
-    def query_for(self, system: str) -> str:
+    def query_for(self, system: str) -> str | None:
         return getattr(self, f"query_{system}")
 
 
 def _scalar(expr_df, expr_dk, expr_ch):
-    """Helper: build scalar UDF queries (wrapped in COUNT)."""
+    """Helper: build scalar UDF queries (wrapped in COUNT). None = unsupported."""
     return (
-        f"SELECT COUNT({expr_df}) FROM {{table}}",
-        f"SELECT COUNT({expr_dk}) FROM {{table}}",
-        f"SELECT COUNT({expr_ch}) FROM {{table}}",
+        f"SELECT COUNT({expr_df}) FROM {{table}}" if expr_df else None,
+        f"SELECT COUNT({expr_dk}) FROM {{table}}" if expr_dk else None,
+        f"SELECT COUNT({expr_ch}) FROM {{table}}" if expr_ch else None,
     )
 
 
 def _agg_ungrouped(expr_df, expr_dk, expr_ch):
-    """Helper: build ungrouped aggregate queries."""
+    """Helper: build ungrouped aggregate queries. None = unsupported."""
     return (
-        f"SELECT {expr_df} FROM {{table}}",
-        f"SELECT {expr_dk} FROM {{table}}",
-        f"SELECT {expr_ch} FROM {{table}}",
+        f"SELECT {expr_df} FROM {{table}}" if expr_df else None,
+        f"SELECT {expr_dk} FROM {{table}}" if expr_dk else None,
+        f"SELECT {expr_ch} FROM {{table}}" if expr_ch else None,
     )
 
 
 def _agg_grouped(expr_df, expr_dk, expr_ch):
-    """Helper: build grouped aggregate queries (GROUP BY id % 1000)."""
+    """Helper: build grouped aggregate queries. None = unsupported."""
     return (
-        f"SELECT id % 1000 AS g, {expr_df} FROM {{table}} GROUP BY g",
-        f"SELECT id % 1000 AS g, {expr_dk} FROM {{table}} GROUP BY g",
-        f"SELECT id % 1000 AS g, {expr_ch} FROM {{table}} GROUP BY g",
+        f"SELECT id % 1000 AS g, {expr_df} FROM {{table}} GROUP BY g" if expr_df else None,
+        f"SELECT id % 1000 AS g, {expr_dk} FROM {{table}} GROUP BY g" if expr_dk else None,
+        f"SELECT id % 1000 AS g, {expr_ch} FROM {{table}} GROUP BY g" if expr_ch else None,
     )
 
 
@@ -67,7 +68,7 @@ UDFS: list[UDFBenchmark] = [
     _udf("lower", _STRING, "lower(column)", *_scalar(
         "lower(str_medium)", "lower(str_medium)", "lower(str_medium)")),
     _udf("initcap", _STRING, "initcap(column)", *_scalar(
-        "initcap(str_medium)", "initcap(str_medium)", "initCap(str_medium)")),
+        "initcap(str_medium)", None, "initCap(str_medium)")),
     _udf("length", _STRING, "character_length(column)", *_scalar(
         "character_length(str_medium)", "length(str_medium)", "lengthUTF8(str_medium)")),
     _udf("ascii", _STRING, "ascii(column)", *_scalar(
