@@ -1,0 +1,24 @@
+[general]
+data_dir = "data"
+results_dir = "results"
+row_count = 5_000_000
+warmup_runs = 1
+bench_runs = 3
+seed = 42
+
+[systems.datafusion]
+enabled = true
+binary = "datafusion-cli"    # Can be absolute path to custom build
+
+[systems.duckdb]
+enabled = true
+binary = "duckdb"
+
+[systems.clickhouse]
+enabled = true
+binary = "clickhouse"
+
+[udfs]
+# categories = ["string", "math"]   # Optional: restrict categories
+# include = ["upper", "lower"]      # Optional: restrict to specific UDFs
+# exclude = ["sin", "cos"]          # Optional: skip specific UDFs
