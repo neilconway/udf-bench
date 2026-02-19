@@ -26,7 +26,9 @@ def load_config(path: Path) -> dict:
         return tomllib.load(f)
 
 
-def create_runners(config: dict, data_path: Path) -> dict[str, SystemRunner]:
+def create_runners(
+    config: dict, data_path: Path, only: list[str] | None = None
+) -> dict[str, SystemRunner]:
     """Instantiate runners for enabled systems."""
     runner_classes: dict[str, type[SystemRunner]] = {
         "datafusion": DataFusionRunner,
@@ -35,6 +37,8 @@ def create_runners(config: dict, data_path: Path) -> dict[str, SystemRunner]:
     }
     runners = {}
     for name, cls in runner_classes.items():
+        if only and name not in only:
+            continue
         sys_cfg = config["systems"].get(name, {})
         if not sys_cfg.get("enabled", True):
             continue
@@ -194,9 +198,7 @@ def main():
     data_path = data_path.resolve()
 
     # Create runners
-    runners = create_runners(config, data_path)
-    if args.system:
-        runners = {k: v for k, v in runners.items() if k in args.system}
+    runners = create_runners(config, data_path, only=args.system)
     if not runners:
         print("ERROR: No systems available", file=sys.stderr)
         sys.exit(1)
