@@ -8,7 +8,7 @@ seed = 42
 
 [systems.datafusion]
 enabled = true
-binary = "datafusion-cli"    # Can be absolute path to custom build
+binary = "/Users/neilconway/df/review/target/release/datafusion-cli"    # Can be absolute path to custom build
 
 [systems.duckdb]
 enabled = true

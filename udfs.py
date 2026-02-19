@@ -69,8 +69,10 @@ UDFS: list[UDFBenchmark] = [
         "lower(str_medium)", "lower(str_medium)", "lower(str_medium)")),
     _udf("initcap", _STRING, "initcap(column)", *_scalar(
         "initcap(str_medium)", None, "initCap(str_medium)")),
-    _udf("length", _STRING, "character_length(column)", *_scalar(
+    _udf("character_length", _STRING, "character_length(column)", *_scalar(
         "character_length(str_medium)", "length(str_medium)", "lengthUTF8(str_medium)")),
+    _udf("octet_length", _STRING, "octet_length(column)", *_scalar(
+        "octet_length(str_medium)", "strlen(str_medium)", "length(str_medium)")),
     _udf("ascii", _STRING, "ascii(column)", *_scalar(
         "ascii(str_short)", "ascii(str_short)", "ascii(str_short)")),
     _udf("chr", _STRING, "chr(int)", *_scalar(
@@ -361,8 +363,6 @@ UDFS += [
         "bit_and(int_small)", "bit_and(int_small)", "groupBitAnd(int_small)")),
     _udf("bit_xor_agg", _AGG, "bit_xor(column)", *_agg_ungrouped(
         "bit_xor(int_small)", "bit_xor(int_small)", "groupBitXor(int_small)")),
-    _udf("array_agg", _AGG, "array_agg(column)", *_agg_ungrouped(
-        "array_agg(int_small)", "array_agg(int_small)", "groupArray(int_small)")),
 ]
 
 # ---------------------------------------------------------------------------
