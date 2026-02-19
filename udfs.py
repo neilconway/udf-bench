@@ -137,7 +137,7 @@ UDFS: list[UDFBenchmark] = [
         "substring(str_medium, 1, 5)")),
     _udf("split_part", _STRING, "split_part(column, '-', 2)", *_scalar(
         "split_part(str_pattern, '-', 2)", "split_part(str_pattern, '-', 2)",
-        "splitByChar('-', str_pattern)[2]")),
+        "splitByChar('-', assumeNotNull(str_pattern))[2]")),
     _udf("levenshtein", _STRING, "levenshtein(col1, col2)", *_scalar(
         "levenshtein(str_short, str_second)", "levenshtein(str_short, str_second)",
         "editDistance(str_short, str_second)")),
