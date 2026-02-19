@@ -152,6 +152,37 @@ def print_results_table(
         print(fmt.format(*row))
 
 
+def print_summary(
+    results: dict[str, dict[str, BenchResult]],
+    systems: list[str],
+):
+    """Print per-system totals: sum of medians, count of successes/errors."""
+    print("-" * 60)
+    print("SUMMARY (sum of median times)")
+    print("-" * 60)
+    for s in systems:
+        total = 0.0
+        ok = 0
+        errors = 0
+        skipped = 0
+        for sys_results in results.values():
+            r = sys_results.get(s)
+            if r and not r.error:
+                total += r.median_time
+                ok += 1
+            elif r and r.error:
+                errors += 1
+            else:
+                skipped += 1
+        parts = [f"{s}: {format_time(total)} total ({ok} UDFs)"]
+        if errors:
+            parts.append(f"{errors} errors")
+        if skipped:
+            parts.append(f"{skipped} skipped")
+        print("  " + ", ".join(parts))
+    print()
+
+
 def save_csv(
     results: dict[str, dict[str, BenchResult]],
     systems: list[str],
@@ -254,6 +285,8 @@ def main():
     print("=" * 80)
     print()
     print_results_table(all_results, system_names, udfs)
+    print()
+    print_summary(all_results, system_names)
 
     # Save CSV
     output_path = Path(args.output) if args.output else (

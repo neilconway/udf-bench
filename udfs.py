@@ -57,7 +57,21 @@ def _udf(name, category, description, q_df, q_dk, q_ch):
 
 
 # ---------------------------------------------------------------------------
-# String functions (25)
+# Helper for window functions
+# ---------------------------------------------------------------------------
+
+
+def _window(expr_df, expr_dk, expr_ch):
+    """Helper: build window function queries (wrapped in subquery + COUNT)."""
+    return (
+        f"SELECT COUNT(*) FROM (SELECT {expr_df} FROM {{table}})" if expr_df else None,
+        f"SELECT COUNT(*) FROM (SELECT {expr_dk} FROM {{table}})" if expr_dk else None,
+        f"SELECT COUNT(*) FROM (SELECT {expr_ch} FROM {{table}})" if expr_ch else None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# String functions (27)
 # ---------------------------------------------------------------------------
 
 _STRING = "string"
@@ -127,6 +141,10 @@ UDFS: list[UDFBenchmark] = [
     _udf("levenshtein", _STRING, "levenshtein(col1, col2)", *_scalar(
         "levenshtein(str_short, str_second)", "levenshtein(str_short, str_second)",
         "editDistance(str_short, str_second)")),
+    _udf("overlay", _STRING, "overlay(col placing 'XX' from 3 for 2)", *_scalar(
+        "overlay(str_medium placing 'XX' from 3 for 2)",
+        None,
+        None)),
 ]
 
 # ---------------------------------------------------------------------------
@@ -145,7 +163,7 @@ UDFS += [
 ]
 
 # ---------------------------------------------------------------------------
-# Regex functions (2)
+# Regex functions (3)
 # ---------------------------------------------------------------------------
 
 _REGEX = "regex"
@@ -159,10 +177,14 @@ UDFS += [
         "regexp_like(str_pattern, '^alpha')",
         "regexp_matches(str_pattern, '^alpha')",
         "match(str_pattern, '^alpha')")),
+    _udf("regexp_count", _REGEX, "regexp_count(column, pattern)", *_scalar(
+        r"regexp_count(str_pattern, '\d+')",
+        None,
+        None)),
 ]
 
 # ---------------------------------------------------------------------------
-# Math functions (16)
+# Math functions (18)
 # ---------------------------------------------------------------------------
 
 _MATH = "math"
@@ -204,10 +226,14 @@ UDFS += [
     _udf("lcm", _MATH, "lcm(col1, col2)", *_scalar(
         "lcm(int_small, int_second)", "lcm(int_small, int_second)",
         "lcm(int_small, int_second)")),
+    _udf("degrees", _MATH, "degrees(column)", *_scalar(
+        "degrees(float_angle)", "degrees(float_angle)", "degrees(float_angle)")),
+    _udf("radians", _MATH, "radians(column)", *_scalar(
+        "radians(float_angle)", "radians(float_angle)", "radians(float_angle)")),
 ]
 
 # ---------------------------------------------------------------------------
-# Trig functions (7)
+# Trig functions (8)
 # ---------------------------------------------------------------------------
 
 _TRIG = "trig"
@@ -230,10 +256,12 @@ UDFS += [
     _udf("atan2", _TRIG, "atan2(col1, col2)", *_scalar(
         "atan2(float_signed, float_pos)", "atan2(float_signed, float_pos)",
         "atan2(float_signed, float_pos)")),
+    _udf("cot", _TRIG, "cot(column)", *_scalar(
+        "cot(float_angle)", "cot(float_angle)", "1/tan(float_angle)")),
 ]
 
 # ---------------------------------------------------------------------------
-# DateTime functions (6)
+# DateTime functions (8)
 # ---------------------------------------------------------------------------
 
 _DT = "datetime"
@@ -257,6 +285,14 @@ UDFS += [
         "make_date(2024, int_small % 12 + 1, int_small % 28 + 1)",
         "make_date(2024, int_small % 12 + 1, int_small % 28 + 1)",
         "makeDate(2024, int_small % 12 + 1, int_small % 28 + 1)")),
+    _udf("to_char", _DT, "to_char(ts, format)", *_scalar(
+        "to_char(ts, '%Y-%m-%d %H:%M:%S')",
+        "strftime(ts, '%Y-%m-%d %H:%M:%S')",
+        "formatDateTime(ts, '%Y-%m-%d %H:%M:%S')")),
+    _udf("date_bin", _DT, "date_bin(interval, ts, origin)", *_scalar(
+        "date_bin(interval '1 hour', ts, timestamp '2020-01-01T00:00:00')",
+        "time_bucket(interval '1 hour', ts)",
+        "toStartOfInterval(ts, interval 1 hour)")),
 ]
 
 # ---------------------------------------------------------------------------
@@ -281,7 +317,7 @@ UDFS += [
 ]
 
 # ---------------------------------------------------------------------------
-# Array functions (14)
+# Array functions (16)
 # ---------------------------------------------------------------------------
 
 _ARRAY = "array"
@@ -332,10 +368,13 @@ UDFS += [
     _udf("array_to_string", _ARRAY, "array_to_string(arr, ',')", *_scalar(
         "array_to_string(arr_int, ',')", "array_to_string(arr_int, ',')",
         "arrayStringConcat(arr_int, ',')")),
+    _udf("array_slice", _ARRAY, "array_slice(arr, 2, 5)", *_scalar(
+        "array_slice(arr_int, 2, 5)", "list_slice(arr_int, 2, 5)",
+        "arraySlice(arr_int, 2, 4)")),
 ]
 
 # ---------------------------------------------------------------------------
-# Aggregate functions — ungrouped (11)
+# Aggregate functions — ungrouped (14)
 # ---------------------------------------------------------------------------
 
 _AGG = "agg_ungrouped"
@@ -363,10 +402,19 @@ UDFS += [
         "bit_and(int_small)", "bit_and(int_small)", "groupBitAnd(int_small)")),
     _udf("bit_xor_agg", _AGG, "bit_xor(column)", *_agg_ungrouped(
         "bit_xor(int_small)", "bit_xor(int_small)", "groupBitXor(int_small)")),
+    _udf("bit_or_agg", _AGG, "bit_or(column)", *_agg_ungrouped(
+        "bit_or(int_small)", "bit_or(int_small)", "groupBitOr(int_small)")),
+    _udf("count_star", _AGG, "count(*)", *_agg_ungrouped(
+        "count(*)", "count(*)", "count(*)")),
+    _udf("stddev_pop", _AGG, "stddev_pop(column)", *_agg_ungrouped(
+        "stddev_pop(float_signed)", "stddev_pop(float_signed)",
+        "stddevPop(float_signed)")),
+    _udf("var_pop", _AGG, "var_pop(column)", *_agg_ungrouped(
+        "var_pop(float_signed)", "var_pop(float_signed)", "varPop(float_signed)")),
 ]
 
 # ---------------------------------------------------------------------------
-# Aggregate functions — grouped (17)
+# Aggregate functions — grouped (25)
 # ---------------------------------------------------------------------------
 
 _AGG_G = "agg_grouped"
@@ -413,4 +461,58 @@ UDFS += [
     _udf("approx_median_grouped", _AGG_G, "approx_median GROUP BY", *_agg_grouped(
         "approx_median(float_signed)", "approx_quantile(float_signed, 0.5)",
         "quantile(0.5)(float_signed)")),
+    _udf("count_star_grouped", _AGG_G, "count(*) GROUP BY", *_agg_grouped(
+        "count(*)", "count(*)", "count(*)")),
+    _udf("stddev_pop_grouped", _AGG_G, "stddev_pop GROUP BY", *_agg_grouped(
+        "stddev_pop(float_signed)", "stddev_pop(float_signed)",
+        "stddevPop(float_signed)")),
+    _udf("var_pop_grouped", _AGG_G, "var_pop GROUP BY", *_agg_grouped(
+        "var_pop(float_signed)", "var_pop(float_signed)", "varPop(float_signed)")),
+    _udf("bit_or_grouped", _AGG_G, "bit_or GROUP BY", *_agg_grouped(
+        "bit_or(int_small)", "bit_or(int_small)", "groupBitOr(int_small)")),
+    _udf("bool_or_grouped", _AGG_G, "bool_or GROUP BY", *_agg_grouped(
+        "bool_or(bool_col)", "bool_or(bool_col)", "max(bool_col)")),
+    _udf("covar_pop_grouped", _AGG_G, "covar_pop GROUP BY", *_agg_grouped(
+        "covar_pop(float_signed, float_pos)", "covar_pop(float_signed, float_pos)",
+        "covarPop(float_signed, float_pos)")),
+    _udf("regr_slope_grouped", _AGG_G, "regr_slope GROUP BY", *_agg_grouped(
+        "regr_slope(float_signed, float_pos)", "regr_slope(float_signed, float_pos)",
+        None)),
+    _udf("approx_percentile_grouped", _AGG_G, "approx_percentile(0.95) GROUP BY", *_agg_grouped(
+        "approx_percentile_cont(float_signed, 0.95)",
+        "approx_quantile(float_signed, 0.95)",
+        "quantile(0.95)(float_signed)")),
+]
+
+# ---------------------------------------------------------------------------
+# Window functions (6)
+# ---------------------------------------------------------------------------
+
+_WIN = "window"
+
+UDFS += [
+    _udf("row_number", _WIN, "row_number() OVER (ORDER BY id)", *_window(
+        "row_number() OVER (ORDER BY id)",
+        "row_number() OVER (ORDER BY id)",
+        "row_number() OVER (ORDER BY id)")),
+    _udf("rank", _WIN, "rank() OVER (ORDER BY int_small)", *_window(
+        "rank() OVER (ORDER BY int_small)",
+        "rank() OVER (ORDER BY int_small)",
+        "rank() OVER (ORDER BY int_small)")),
+    _udf("dense_rank", _WIN, "dense_rank() OVER (ORDER BY int_small)", *_window(
+        "dense_rank() OVER (ORDER BY int_small)",
+        "dense_rank() OVER (ORDER BY int_small)",
+        "dense_rank() OVER (ORDER BY int_small)")),
+    _udf("lag", _WIN, "lag(col, 1) OVER (ORDER BY id)", *_window(
+        "lag(int_small, 1) OVER (ORDER BY id)",
+        "lag(int_small, 1) OVER (ORDER BY id)",
+        "lagInFrame(int_small, 1) OVER (ORDER BY id)")),
+    _udf("lead", _WIN, "lead(col, 1) OVER (ORDER BY id)", *_window(
+        "lead(int_small, 1) OVER (ORDER BY id)",
+        "lead(int_small, 1) OVER (ORDER BY id)",
+        "leadInFrame(int_small, 1) OVER (ORDER BY id)")),
+    _udf("running_sum", _WIN, "sum(col) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING)", *_window(
+        "sum(int_small) OVER (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+        "sum(int_small) OVER (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+        "sum(int_small) OVER (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)")),
 ]
