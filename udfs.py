@@ -15,7 +15,7 @@ class UDFBenchmark:
     query_clickhouse: str | None
 
     def query_for(self, system: str) -> str | None:
-        return getattr(self, f"query_{system}")
+        return getattr(self, f"query_{system}", None)
 
 
 def _scalar(expr_df, expr_dk, expr_ch):

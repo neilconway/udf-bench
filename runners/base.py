@@ -42,6 +42,10 @@ class SystemRunner(ABC):
             raise RuntimeError(
                 f"{self.name} binary '{self.binary}' not found"
             )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(
+                f"{self.name} binary '{self.binary}' timed out on version check"
+            )
 
     @property
     @abstractmethod
@@ -109,7 +113,11 @@ class SystemRunner(ABC):
             times.append(t)
 
         times.sort()
-        median = times[len(times) // 2]
+        n = len(times)
+        if n % 2 == 1:
+            median = times[n // 2]
+        else:
+            median = (times[n // 2 - 1] + times[n // 2]) / 2
         return BenchResult(
             udf_name=udf_name,
             system=self.name,

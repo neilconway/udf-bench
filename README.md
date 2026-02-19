@@ -77,21 +77,25 @@ uv run bench.py
 
 | Category | Count | Examples |
 |---|---|---|
-| `string` | 25 | upper, lower, initcap, substr, replace, levenshtein |
-| `math` | 16 | abs, ceil, floor, round, sqrt, power, factorial, gcd |
-| `trig` | 7 | sin, cos, tan, asin, acos, atan, atan2 |
-| `datetime` | 6 | date_trunc, date_part, to_unixtime, make_date |
+| `string` | 27 | upper, lower, initcap, substr, replace, levenshtein, overlay |
+| `math` | 18 | abs, ceil, floor, round, sqrt, power, factorial, gcd, degrees |
+| `trig` | 8 | sin, cos, tan, asin, acos, atan, atan2, cot |
+| `datetime` | 8 | date_trunc, date_part, to_unixtime, make_date, to_char, date_bin |
 | `conditional` | 4 | coalesce, nullif, greatest, least |
 | `hash` | 3 | md5, sha256, to_hex |
-| `regex` | 2 | regexp_replace, regexp_like |
-| `array` | 15 | array_has, array_sort, array_distinct, array_intersect |
-| `agg_ungrouped` | 11 | sum, avg, count_distinct, stddev, array_agg |
-| `agg_grouped` | 17 | sum, avg, string_agg, corr, median (with GROUP BY) |
+| `regex` | 3 | regexp_replace, regexp_like, regexp_count |
+| `array` | 16 | array_has, array_sort, array_distinct, array_intersect, array_slice |
+| `agg_ungrouped` | 14 | sum, avg, count_distinct, stddev, stddev_pop, bit_and |
+| `agg_grouped` | 25 | sum, avg, string_agg, corr, median, regr_slope (with GROUP BY) |
+| `window` | 6 | row_number, rank, dense_rank, lag, lead, running_sum |
 
 ## Output
 
-Results are printed as a table with a "DF/best" column showing how
-DataFusion compares to the faster of DuckDB/ClickHouse. Values > 1.0x
-mean DataFusion is slower.
+Results are printed as a table with per-system ratio columns (e.g.,
+"DF/duckdb", "DF/clickhouse") showing how DataFusion compares to each
+other system. Values > 1.0x mean DataFusion is slower.
+
+A summary section shows total elapsed time per system (sum of median
+times across all successful UDFs).
 
 Detailed per-run timings are saved to `results/bench_YYYYMMDD_HHMMSS.csv`.
