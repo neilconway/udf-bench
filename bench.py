@@ -92,7 +92,7 @@ def format_time(seconds: float) -> str:
 
 def format_ratio(target: float, baseline: float) -> str:
     if baseline <= 0 or baseline == float("inf") or target == float("inf"):
-        return "N/A"
+        return "n/a"
     ratio = target / baseline
     return f"{ratio:.2f}x"
 
@@ -111,8 +111,7 @@ def print_results_table(
     for s in systems:
         header.append(s)
     if show_ratios:
-        for s in other_systems:
-            header.append(f"DF/{s}")
+        header.append("DF/best")
 
     udf_lookup = {u.name: u for u in udfs}
     rows = []
@@ -135,9 +134,11 @@ def print_results_table(
 
         if show_ratios:
             df_median = medians.get("datafusion", float("inf"))
-            for s in other_systems:
-                other_median = medians.get(s, float("inf"))
-                row.append(format_ratio(df_median, other_median))
+            best_other = min(
+                (medians.get(s, float("inf")) for s in other_systems),
+                default=float("inf"),
+            )
+            row.append(format_ratio(df_median, best_other))
 
         rows.append(row)
 
@@ -156,9 +157,9 @@ def print_summary(
     results: dict[str, dict[str, BenchResult]],
     systems: list[str],
 ):
-    """Print per-system totals: sum of medians, count of successes/errors."""
+    """Print per-system averages: mean of medians, count of successes/errors."""
     print("-" * 60)
-    print("SUMMARY (sum of median times)")
+    print("SUMMARY (average of median times)")
     print("-" * 60)
     for s in systems:
         total = 0.0
@@ -174,7 +175,8 @@ def print_summary(
                 errors += 1
             else:
                 skipped += 1
-        parts = [f"{s}: {format_time(total)} total ({ok} UDFs)"]
+        avg = total / ok if ok > 0 else float("inf")
+        parts = [f"{s}: {format_time(avg)} avg ({ok} UDFs)"]
         if errors:
             parts.append(f"{errors} errors")
         if skipped:
