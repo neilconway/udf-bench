@@ -103,14 +103,17 @@ def print_results_table(
     udfs: list[UDFBenchmark],
 ):
     """Print results as a formatted table to stdout."""
-    # Build header
+    # Build header: time columns, then ratio columns (DF/each other system)
+    other_systems = [s for s in systems if s != "datafusion"]
+    show_ratios = "datafusion" in systems and len(other_systems) > 0
+
     header = ["UDF", "Category"]
     for s in systems:
-        header.append(f"{s}")
-    if "datafusion" in systems and len(systems) > 1:
-        header.append("DF/best")
+        header.append(s)
+    if show_ratios:
+        for s in other_systems:
+            header.append(f"DF/{s}")
 
-    # Calculate column widths
     udf_lookup = {u.name: u for u in udfs}
     rows = []
     for udf_name, sys_results in results.items():
@@ -118,24 +121,24 @@ def print_results_table(
         cat = udf_def.category if udf_def else "?"
 
         row = [udf_name, cat]
-        df_median = float("inf")
-        best_other = float("inf")
+        medians: dict[str, float] = {}
 
         for s in systems:
             r = sys_results.get(s)
             if r and not r.error:
                 row.append(format_time(r.median_time))
-                if s == "datafusion":
-                    df_median = r.median_time
-                else:
-                    best_other = min(best_other, r.median_time)
+                medians[s] = r.median_time
             elif r and r.error:
                 row.append("ERROR")
             else:
                 row.append("n/a")
 
-        if "datafusion" in systems and len(systems) > 1:
-            row.append(format_ratio(df_median, best_other))
+        if show_ratios:
+            df_median = medians.get("datafusion", float("inf"))
+            for s in other_systems:
+                other_median = medians.get(s, float("inf"))
+                row.append(format_ratio(df_median, other_median))
+
         rows.append(row)
 
     # Print
