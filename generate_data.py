@@ -12,6 +12,33 @@ import pyarrow.parquet as pq
 POOL_SIZE = 100_000  # Pre-generate this many unique strings, then sample
 
 
+def _make_unicode_charset():
+    """Build a charset mixing multi-byte UTF-8 characters for realistic Unicode benchmarks.
+
+    Returns a string of ~200 characters covering:
+    - ASCII letters (1-byte UTF-8)
+    - Latin Extended accented chars (2-byte UTF-8)
+    - Cyrillic letters (2-byte UTF-8)
+    - CJK ideographs (3-byte UTF-8)
+    - Emoji (4-byte UTF-8)
+    """
+    chars = ""
+    # ~30 ASCII letters for realism
+    chars += "abcdefghijklmnopqrstuvwxyz ABCD"
+    # ~40 Latin Extended accented characters (U+00C0-U+00FF range)
+    chars += "".join(chr(c) for c in range(0x00C0, 0x00E8))
+    # ~40 Cyrillic letters (U+0410-U+0438)
+    chars += "".join(chr(c) for c in range(0x0410, 0x0438))
+    # ~60 CJK Unified Ideographs (U+4E00-U+4E3C)
+    chars += "".join(chr(c) for c in range(0x4E00, 0x4E3C))
+    # ~10 Emoji (various common ones)
+    chars += "".join(chr(c) for c in [
+        0x1F600, 0x1F601, 0x1F602, 0x1F603, 0x1F604,
+        0x1F60A, 0x1F60D, 0x1F60E, 0x1F615, 0x1F622,
+    ])
+    return chars
+
+
 def _make_string_pool(rng, pool_size, min_len, max_len, charset=string.ascii_lowercase):
     """Pre-generate a pool of random strings. Returns a Python list."""
     char_arr = np.array(list(charset))
@@ -86,7 +113,7 @@ def generate(config_path: Path = Path("config.toml")):
     # --- Scalar columns ---
     id_col = pa.array(np.arange(n, dtype=np.int64))
 
-    print("  strings...")
+    print("  strings (ASCII)...")
     str_short = random_strings_pooled(rng, n, 5, 10)
     str_medium = random_strings_pooled(
         rng, n, 20, 50, charset=string.ascii_letters + string.digits + "   "
@@ -98,9 +125,19 @@ def generate(config_path: Path = Path("config.toml")):
     str_pattern = random_pattern_strings(rng, n)
     str_second = random_strings_pooled(rng, n, 5, 15)
 
+    print("  strings (Unicode)...")
+    uni = _make_unicode_charset()
+    ustr_short = random_strings_pooled(rng, n, 5, 10, charset=uni)
+    ustr_medium = random_strings_pooled(rng, n, 20, 50, charset=uni)
+    ustr_long = random_strings_pooled(rng, n, 100, 200, charset=uni)
+    ustr_nullable_base = random_strings_pooled(rng, n, 20, 50, charset=uni)
+    ustr_second = random_strings_pooled(rng, n, 5, 15, charset=uni)
+
     # Apply nulls via pa.compute
     null_mask = pa.array(rng.random(n) < 0.1)
     str_nullable = pa.compute.if_else(null_mask, None, str_nullable_base)
+    ustr_null_mask = pa.array(rng.random(n) < 0.1)
+    ustr_nullable = pa.compute.if_else(ustr_null_mask, None, ustr_nullable_base)
 
     print("  integers...")
     int_small = pa.array(rng.integers(1, 1001, size=n), type=pa.int64())
@@ -155,6 +192,11 @@ def generate(config_path: Path = Path("config.toml")):
             "str_nullable": str_nullable,
             "str_pattern": str_pattern,
             "str_second": str_second,
+            "ustr_short": ustr_short,
+            "ustr_medium": ustr_medium,
+            "ustr_long": ustr_long,
+            "ustr_nullable": ustr_nullable,
+            "ustr_second": ustr_second,
             "int_small": int_small,
             "int_large": int_large,
             "int_nullable": int_nullable,

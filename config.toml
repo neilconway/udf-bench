@@ -20,5 +20,5 @@ binary = "clickhouse"
 
 [udfs]
 # categories = ["string", "math"]   # Optional: restrict categories
-# include = ["upper", "lower"]      # Optional: restrict to specific UDFs
+include = ["lpad", "rpad", "array_agg"]      # Optional: restrict to specific UDFs
 # exclude = ["sin", "cos"]          # Optional: skip specific UDFs

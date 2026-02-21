@@ -222,6 +222,8 @@ def main():
     parser.add_argument("--category", action="append", help="Run only specific category(ies)")
     parser.add_argument("--system", action="append", help="Run only specific system(s)")
     parser.add_argument("--output", default=None, help="CSV output path")
+    parser.add_argument("--unicode", action="store_true",
+                        help="Use Unicode string columns (ustr_*) instead of ASCII (str_*)")
     args = parser.parse_args()
 
     config = load_config(Path(args.config))
@@ -249,8 +251,22 @@ def main():
         print("ERROR: No UDFs selected", file=sys.stderr)
         sys.exit(1)
 
+    # Unicode column remapping: str_short -> ustr_short, etc.
+    # str_pattern is excluded (fixed ASCII format for regex/split benchmarks).
+    _UNICODE_REMAP = {
+        "str_short": "ustr_short",
+        "str_medium": "ustr_medium",
+        "str_long": "ustr_long",
+        "str_nullable": "ustr_nullable",
+        "str_second": "ustr_second",
+    }
+
+    use_unicode = args.unicode
+
     print(f"Systems: {', '.join(system_names)}")
     print(f"UDFs: {len(udfs)}")
+    if use_unicode:
+        print("Strings: Unicode")
     print(f"Warmup: {g['warmup_runs']}, Runs: {g['bench_runs']}")
     print()
 
@@ -267,6 +283,9 @@ def main():
                 print(f"  {sys_name}: n/a")
                 continue
             sql = query.format(table=runner.table_ref())
+            if use_unicode:
+                for ascii_col, unicode_col in _UNICODE_REMAP.items():
+                    sql = sql.replace(ascii_col, unicode_col)
             result = runner.benchmark(
                 udf_name=udf.name,
                 sql=sql,
