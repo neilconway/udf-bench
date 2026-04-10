@@ -62,11 +62,20 @@ def filter_udfs(
     exclude = set(udfs_cfg.get("exclude", []))
     categories = udfs_cfg.get("categories")
 
+    all_names = {u.name for u in udfs}
+
     if include:
         include_set = set(include)
+        unknown = include_set - all_names
+        if unknown:
+            print(f"WARNING: include contains unknown UDF names: {sorted(unknown)}", file=sys.stderr)
         udfs = [u for u in udfs if u.name in include_set]
     if exclude:
-        udfs = [u for u in udfs if u.name not in exclude]
+        exclude_set = set(exclude)
+        unknown = exclude_set - all_names
+        if unknown:
+            print(f"WARNING: exclude contains unknown UDF names: {sorted(unknown)}", file=sys.stderr)
+        udfs = [u for u in udfs if u.name not in exclude_set]
     if categories:
         cat_set = set(categories)
         udfs = [u for u in udfs if u.category in cat_set]
@@ -74,6 +83,9 @@ def filter_udfs(
     # CLI overrides
     if cli_udfs:
         udf_set = set(cli_udfs)
+        unknown = udf_set - all_names
+        if unknown:
+            print(f"WARNING: --udf contains unknown UDF names: {sorted(unknown)}", file=sys.stderr)
         udfs = [u for u in udfs if u.name in udf_set]
     if cli_categories:
         cat_set = set(cli_categories)

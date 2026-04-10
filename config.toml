@@ -8,7 +8,7 @@ seed = 42
 
 [systems.datafusion]
 enabled = true
-binary = "/Users/neilconway/df/review/target/release/datafusion-cli"    # Can be absolute path to custom build
+binary = "/Users/neilconway/df/main/target/release/datafusion-cli"    # Can be absolute path to custom build
 
 [systems.duckdb]
 enabled = true
@@ -20,5 +20,5 @@ binary = "clickhouse"
 
 [udfs]
 # categories = ["string", "math"]   # Optional: restrict categories
-include = ["lpad", "rpad", "array_agg"]      # Optional: restrict to specific UDFs
+include = ["concat_op", "like_prefix", "like_contains", "ilike_prefix", "ilike_contains"]
 # exclude = ["sin", "cos"]          # Optional: skip specific UDFs

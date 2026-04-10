@@ -145,6 +145,21 @@ UDFS: list[UDFBenchmark] = [
         "overlay(str_medium placing 'XX' from 3 for 2)",
         None,
         None)),
+    _udf("concat_op", _STRING, "col1 || col2 (operator)", *_scalar(
+        "str_short || str_second", "str_short || str_second",
+        "str_short || str_second")),
+    _udf("like_prefix", _STRING, "col LIKE 'alpha%'", *_scalar(
+        "str_pattern LIKE 'alpha%'", "str_pattern LIKE 'alpha%'",
+        "str_pattern LIKE 'alpha%'")),
+    _udf("like_contains", _STRING, "col LIKE '%alpha%'", *_scalar(
+        "str_medium LIKE '%abc%'", "str_medium LIKE '%abc%'",
+        "str_medium LIKE '%abc%'")),
+    _udf("ilike_prefix", _STRING, "col ILIKE 'ALPHA%'", *_scalar(
+        "str_pattern ILIKE 'ALPHA%'", "str_pattern ILIKE 'ALPHA%'",
+        "str_pattern ILIKE 'ALPHA%'")),
+    _udf("ilike_contains", _STRING, "col ILIKE '%ALPHA%'", *_scalar(
+        "str_medium ILIKE '%ABC%'", "str_medium ILIKE '%ABC%'",
+        "str_medium ILIKE '%ABC%'")),
 ]
 
 # ---------------------------------------------------------------------------
@@ -371,6 +386,16 @@ UDFS += [
     _udf("array_slice", _ARRAY, "array_slice(arr, 2, 5)", *_scalar(
         "array_slice(arr_int, 2, 5)", "list_slice(arr_int, 2, 5)",
         "arraySlice(arr_int, 2, 4)")),
+    _udf("array_min", _ARRAY, "array_min(arr)", *_scalar(
+        "array_min(arr_int)", "list_min(arr_int)", "arrayMin(arr_int)")),
+    _udf("array_positions", _ARRAY, "array_positions(arr, val)", *_scalar(
+        "array_positions(arr_int, search_int)", None, None)),
+    _udf("array_union", _ARRAY, "array_union(arr1, arr2)", *_scalar(
+        "array_union(arr_int, arr_int_second)",
+        "list_distinct(list_concat(arr_int, arr_int_second))",
+        None)),
+    _udf("array_except", _ARRAY, "array_except(arr1, arr2)", *_scalar(
+        "array_except(arr_int, arr_int_second)", None, None)),
 ]
 
 # ---------------------------------------------------------------------------
@@ -394,6 +419,9 @@ UDFS += [
     _udf("approx_distinct", _AGG, "approx_distinct(column)", *_agg_ungrouped(
         "approx_distinct(int_large)", "approx_count_distinct(int_large)",
         "uniq(int_large)")),
+    _udf("approx_distinct_str", _AGG, "approx_distinct(string column)", *_agg_ungrouped(
+        "approx_distinct(str_medium)", "approx_count_distinct(str_medium)",
+        "uniq(str_medium)")),
     _udf("stddev", _AGG, "stddev(column)", *_agg_ungrouped(
         "stddev(float_signed)", "stddev(float_signed)", "stddevSamp(float_signed)")),
     _udf("variance", _AGG, "var(column)", *_agg_ungrouped(
@@ -434,6 +462,9 @@ UDFS += [
     _udf("approx_distinct_grouped", _AGG_G, "approx_distinct GROUP BY", *_agg_grouped(
         "approx_distinct(int_large)", "approx_count_distinct(int_large)",
         "uniq(int_large)")),
+    _udf("approx_distinct_str_grouped", _AGG_G, "approx_distinct(string) GROUP BY", *_agg_grouped(
+        "approx_distinct(str_medium)", "approx_count_distinct(str_medium)",
+        "uniq(str_medium)")),
     _udf("stddev_grouped", _AGG_G, "stddev GROUP BY", *_agg_grouped(
         "stddev(float_signed)", "stddev(float_signed)", "stddevSamp(float_signed)")),
     _udf("variance_grouped", _AGG_G, "var GROUP BY", *_agg_grouped(
