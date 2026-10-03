@@ -89,13 +89,46 @@ uv run bench.py
 | `agg_grouped` | 25 | sum, avg, string_agg, corr, median, regr_slope (with GROUP BY) |
 | `window` | 6 | row_number, rank, dense_rank, lag, lead, running_sum |
 
+## Methodology
+
+The queries are designed so that every system actually evaluates each
+function on every row (see the docstring in `udfs.py`):
+
+- **Scalar functions** are reduced with `SUM` of a cheap function of the
+  result (e.g. `SUM(octet_length(upper(s)))`, `SUM(cardinality(array_sort(a)))`).
+  `COUNT(f(x))` is *not* used: when an engine can prove `f(x)` is never NULL it
+  rewrites this to `COUNT(*)` and answers it from Parquet metadata without
+  calling `f` (ClickHouse does this for non-Nullable results such as arrays and
+  booleans; DuckDB uses Parquet statistics).
+- **Window functions** are reduced with `SUM` over the window output; with
+  `COUNT(*)` the planner drops the window expression entirely.
+- **Ungrouped `min`/`max`/`count(*)`** disable the metadata shortcuts that
+  answer them from Parquet footer statistics.
+- **Timing** uses the query time reported by each engine (`Elapsed` in
+  datafusion-cli, `.timer` in DuckDB, `--time` in ClickHouse), which excludes
+  process startup (~6ms for DataFusion, ~10ms for DuckDB, ~165ms for
+  `clickhouse local`). Wall-clock time is recorded in the CSV as well.
+- **Baselines**: each scalar UDF has a baseline query that applies the same
+  reduction to its raw input columns. `net = query - baseline` approximates
+  the cost of the function itself, separate from Parquet scan/decode cost
+  (which differs a lot between systems, e.g. for list columns). Use
+  `--no-baseline` to skip these.
+- **Result check**: each single-row result is compared across systems. A
+  mismatch means the systems aren't computing the same thing (or one has a
+  bug), so their timings aren't directly comparable.
+
 ## Output
 
-Results are printed as a table with per-system ratio columns (e.g.,
-"DF/duckdb", "DF/clickhouse") showing how DataFusion compares to each
-other system. Values > 1.0x mean DataFusion is slower.
+Results are printed as a table with per-system times and two ratio columns.
+Values > 1.0x mean DataFusion is slower.
 
-A summary section shows total elapsed time per system (sum of median
-times across all successful UDFs).
+- `DF/best`: DataFusion time / fastest other system's time.
+- `DF/best net`: the same ratio for net function time (scalar UDFs only).
+  `<2ms` means a net time is below timing resolution, so no meaningful ratio.
 
-Detailed per-run timings are saved to `results/bench_YYYYMMDD_HHMMSS.csv`.
+A summary section shows the average median time per system, followed by any
+cross-system result mismatches.
+
+Detailed per-run timings, baselines, net times and results are saved to
+`results/bench_YYYYMMDD_HHMMSS.csv`. Results from before this methodology
+change are not comparable with newer ones.

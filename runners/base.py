@@ -11,10 +11,34 @@ from pathlib import Path
 class BenchResult:
     udf_name: str
     system: str
+    # Query time as reported by the engine itself (excludes process startup).
     times: list[float] = field(default_factory=list)
     median_time: float = float("inf")
     min_time: float = float("inf")
+    # Wall-clock time of the whole CLI invocation (includes process startup).
+    wall_times: list[float] = field(default_factory=list)
+    median_wall_time: float = float("inf")
+    # Query result, if it was a single row; used for cross-system checks.
+    result: str | None = None
     error: str | None = None
+
+
+def _median(values: list[float]) -> float:
+    values = sorted(values)
+    n = len(values)
+    if n % 2 == 1:
+        return values[n // 2]
+    return (values[n // 2 - 1] + values[n // 2]) / 2
+
+
+def _error_message(output: str) -> str:
+    """Error text from CLI output, skipping banners and timing lines before it."""
+    lines = [line for line in output.strip().splitlines() if line.strip()]
+    for i, line in enumerate(lines):
+        if any(k in line for k in ("Error", "Exception", "error:")):
+            lines = lines[i:]
+            break
+    return " ".join(lines)[:200]
 
 
 class SystemRunner(ABC):
@@ -63,12 +87,23 @@ class SystemRunner(ABC):
         """Build the shell command to execute a SQL query."""
         ...
 
+    @abstractmethod
+    def _parse_output(self, stdout: str, stderr: str) -> tuple[float | None, list[str]]:
+        """Extract (engine-reported seconds of the last statement, result rows)."""
+        ...
+
     def table_ref(self) -> str:
         """Return the SQL table reference for the parquet file."""
         return f"'{self.data_path}'"
 
-    def run_query(self, sql: str, timeout: float = 300.0) -> tuple[float, str | None]:
-        """Run a SQL query. Returns (wall_clock_seconds, error_or_none)."""
+    def run_query(
+        self, sql: str, timeout: float = 300.0
+    ) -> tuple[float, float, str | None, str | None]:
+        """Run a SQL query.
+
+        Returns (engine_seconds, wall_clock_seconds, result, error_or_none).
+        ``result`` is the single result row, or None if there wasn't exactly one.
+        """
         cmd = self._build_command(sql)
         start = time.perf_counter()
         try:
@@ -78,12 +113,15 @@ class SystemRunner(ABC):
                 text=True,
                 timeout=timeout,
             )
-            elapsed = time.perf_counter() - start
-            if result.returncode != 0:
-                return elapsed, result.stderr.strip()[:200]
-            return elapsed, None
         except subprocess.TimeoutExpired:
-            return timeout, "TIMEOUT"
+            return timeout, timeout, None, "TIMEOUT"
+        wall = time.perf_counter() - start
+        if result.returncode != 0:
+            return wall, wall, None, _error_message(result.stderr or result.stdout)
+        engine, rows = self._parse_output(result.stdout, result.stderr)
+        if engine is None:
+            return wall, wall, None, "could not parse engine-reported query time"
+        return engine, wall, rows[0] if len(rows) == 1 else None, None
 
     def benchmark(
         self, udf_name: str, sql: str, warmup: int = 1, runs: int = 3
@@ -91,7 +129,7 @@ class SystemRunner(ABC):
         """Run warmup + timed runs, return BenchResult."""
         # Warmup
         for _ in range(warmup):
-            _, err = self.run_query(sql)
+            _, _, _, err = self.run_query(sql)
             if err:
                 return BenchResult(
                     udf_name=udf_name,
@@ -101,27 +139,30 @@ class SystemRunner(ABC):
 
         # Timed runs
         times = []
+        wall_times = []
+        value = None
         for _ in range(runs):
-            t, err = self.run_query(sql)
+            t, wall, value, err = self.run_query(sql)
             if err:
                 return BenchResult(
                     udf_name=udf_name,
                     system=self.name,
                     times=times,
+                    wall_times=wall_times,
                     error=err,
                 )
             times.append(t)
+            wall_times.append(wall)
 
         times.sort()
-        n = len(times)
-        if n % 2 == 1:
-            median = times[n // 2]
-        else:
-            median = (times[n // 2 - 1] + times[n // 2]) / 2
+        wall_times.sort()
         return BenchResult(
             udf_name=udf_name,
             system=self.name,
             times=times,
-            median_time=median,
+            median_time=_median(times),
             min_time=times[0],
+            wall_times=wall_times,
+            median_wall_time=_median(wall_times),
+            result=value,
         )
